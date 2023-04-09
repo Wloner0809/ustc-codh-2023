@@ -14,7 +14,7 @@
 
 `MAV`模块：
 
-![](E:\wloner0809_ustc_2021-2025\2023 spring\COD_H\CODH_lab\report\lab1\pics\data_path.jpg)
+![](pics/data_path.jpg)
 
 > 这其中的`sel`是`FSM`在不同状态下的输出，用于控制输出`m`
 
@@ -278,7 +278,7 @@ endmodule
 
 * `ALU`模块
 
-![](E:\wloner0809_ustc_2021-2025\2023 spring\COD_H\CODH_lab\report\lab1\pics\simulation_alu.png)
+![](pics\simulation_alu.png)
 
 ```verilog
 	initial begin
@@ -308,9 +308,9 @@ endmodule
 
 * `MAV`模块
 
-![](E:\wloner0809_ustc_2021-2025\2023 spring\COD_H\CODH_lab\report\lab1\pics\simulation_mav1.png)
+![](pics\simulation_mav1.png)
 
-![](E:\wloner0809_ustc_2021-2025\2023 spring\COD_H\CODH_lab\report\lab1\pics\simulation_mav2.png)
+![](pics\simulation_mav2.png)
 
 ```verilog
 	initial begin
@@ -351,11 +351,11 @@ endmodule
 >
 > **第二组数据：2	3	4	5	6**
 
-![](E:\wloner0809_ustc_2021-2025\2023 spring\COD_H\CODH_lab\report\lab1\pics\test1.jpg)
+![](pics\test1.jpg)
 
-![](E:\wloner0809_ustc_2021-2025\2023 spring\COD_H\CODH_lab\report\lab1\pics\test2.jpg)
+![](pics\test2.jpg)
 
-![](E:\wloner0809_ustc_2021-2025\2023 spring\COD_H\CODH_lab\report\lab1\pics\test3.jpg)
+![](pics\test3.jpg)
 
 > 结果符合预期
 >
@@ -367,11 +367,11 @@ endmodule
 
 * `ALU`32位测试
 
-![](E:\wloner0809_ustc_2021-2025\2023 spring\COD_H\CODH_lab\report\lab1\pics\test4.jpg)
+![](pics\test4.jpg)
 
-![](E:\wloner0809_ustc_2021-2025\2023 spring\COD_H\CODH_lab\report\lab1\pics\test5.jpg)
+![](pics\test5.jpg)
 
-![](E:\wloner0809_ustc_2021-2025\2023 spring\COD_H\CODH_lab\report\lab1\pics\test6.jpg)
+![](pics\test6.jpg)
 
 > 这里没有测试所有功能，只测试了**加法、算数右移、减法**
 >
@@ -393,31 +393,31 @@ endmodule
 
 * `RTL`
 
-![](E:\wloner0809_ustc_2021-2025\2023 spring\COD_H\CODH_lab\report\lab1\pics\RTL_MAV1.png)
+![](pics\RTL_MAV1.png)
 
-![](E:\wloner0809_ustc_2021-2025\2023 spring\COD_H\CODH_lab\report\lab1\pics\RTL_MAV2.png)
+![](pics\RTL_MAV2.png)
 
 * 综合实现电路
 
-![](E:\wloner0809_ustc_2021-2025\2023 spring\COD_H\CODH_lab\report\lab1\pics\Synthesis_MAV.png)
+![](pics\Synthesis_MAV.png)
 
 * 电路资源
 
-![](E:\wloner0809_ustc_2021-2025\2023 spring\COD_H\CODH_lab\report\lab1\pics\utilization_lab1.png)
+![](pics\utilization_lab1.png)
 
 ### ALU测试模块
 
 * `RTL`
 
-![](E:\wloner0809_ustc_2021-2025\2023 spring\COD_H\CODH_lab\report\lab1\pics\RTL_ALU.png)
+![](pics\RTL_ALU.png)
 
 * 综合实现电路
 
-![](E:\wloner0809_ustc_2021-2025\2023 spring\COD_H\CODH_lab\report\lab1\pics\Synthesis_ALU.png)
+![](pics\Synthesis_ALU.png)
 
 * 电路资源
 
-![](E:\wloner0809_ustc_2021-2025\2023 spring\COD_H\CODH_lab\report\lab1\pics\utilization_ALU.png)
+![](pics\utilization_ALU.png)
 
 
 
@@ -425,11 +425,11 @@ endmodule
 
 * `MAV`模块
 
-![](E:\wloner0809_ustc_2021-2025\2023 spring\COD_H\CODH_lab\report\lab1\pics\timing_lab1.png)
+![](pics\timing_lab1.png)
 
 * `ALU`测试模块
 
-![](E:\wloner0809_ustc_2021-2025\2023 spring\COD_H\CODH_lab\report\lab1\pics\timing_ALU.png)
+![](pics\timing_ALU.png)
 
 ## 实验总结
 
