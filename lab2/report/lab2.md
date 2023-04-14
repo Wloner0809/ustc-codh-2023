@@ -11,7 +11,7 @@
 
 ### 数据通路
 
-![](pics/data_path.png)
+![](pics/data_path.PNG)
 
 
 
