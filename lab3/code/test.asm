@@ -7,20 +7,21 @@ data4: .word 0xffff00ff
 data6: .word 0x00002100
 data7: .word 0xfffff00f
 data8: .word 0x00023000
-data9: .word 0x0000118c
+data9: .word 0x00001188
 data5: .word 0x00002100
 
 str:   .string "the test is successful !"
 
 .text
 
+
+#定义一个宏，用于失败时终止程序
 .macro fail
 li a7, 10
 ecall
 .end_macro
 
 beq x0, x0, next1               #测试beq
-
 fail
 
 next1:
@@ -62,9 +63,8 @@ next6:
 next7:
     lw  t1, data1               #测试and
     lw  t2, data2
-    mv  t3, x0
     and t1, t1, t2
-    beq t1, t3, next8
+    beq t1, x0, next8
     fail
 
 next8:
@@ -116,10 +116,10 @@ next14:
     fail
 
 next15:
-    lw t1, 0x00002020           #测试sw
-    lw t2, data3
-    sw t2, 0(t1)
-    lw t3, 0(t1)
+    lw  t1, 0x00002020           #测试sw
+    lw  t2, data3
+    sw  t2, 0(t1)
+    lw  t3, 0(t1)
     beq t2, t3, next16
     fail
 
@@ -133,6 +133,6 @@ next17:
     jalr ra, 0(t1)
     fail
     la  a0, str
-    li, a7, 4
+    li  a7, 4
     ecall
 
