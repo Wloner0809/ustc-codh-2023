@@ -13,12 +13,12 @@ data5: .word 0x00002100
 
 .text
 
-    beq x0, x0, next1               #测试beq
+    beq x0, x0, next1           #测试beq
     addi t6, t6, -1
 
 next1:
     addi t6, t6, 1
-    lw  t1, 0x00002500          #测试lw，让0x00002500中的值为0
+    lw  t1, 0x00002030          #测试lw，让0x00002030中的值为0
     beq t1, x0, next2
     addi t6, t6, -1
 
