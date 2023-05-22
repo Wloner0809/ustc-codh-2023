@@ -61,6 +61,10 @@ module CPU_v4(
     //Forward模块
     wire [1:0] ForwardA;
     wire [1:0] ForwardB;
+    //jal、jalr的处理
+    reg [31:0] pre_inst;
+    reg [31:0] pre_mem_reg_wd;
+    reg [4:0] pre_mem_wb_rd;
 
 
     //IF阶段
@@ -144,10 +148,12 @@ module CPU_v4(
                 NPC = (PC == 32'h0 | PC == 32'h4) ? (PC + 32'h4) : (NPC_src + 32'h4);
             end
             2'b10: begin
+                //jal
                 NPC = ID_EX_IMM + ID_EX_PC;
             end
             2'b11: begin
-                NPC = (ID_EX_IMM + (ForwardA == 2'b10) ? EX_MEM_ALUout : ID_EX_RD1) & ~1;
+                //jalr
+                NPC = (ID_EX_IMM + (((pre_inst[6:0] == 7'b1101111 | pre_inst[6:0] == 7'b1100111) & (ID_EX_RS1 == pre_mem_wb_rd)) ? pre_mem_reg_wd : (((ForwardA == 2'b10) ? EX_MEM_ALUout : ((ForwardA == 2'b01) ? MEM_WB_WD : ID_EX_RD1))))) & ~1;
             end
             default: begin
                 NPC = 32'h00000000;
@@ -321,11 +327,26 @@ module CPU_v4(
         .ID_EX_Flush(ID_EX_Flush)
     );
 
+    //处理jal、jalr的相关
+    //这里jal、jalr指令一定会产生Flush，暂停两个周期
+    //所以在执行下一条指令时，jal、jalr刚好执行完毕
+    always @(posedge cpu_clk or negedge cpu_rstn) begin
+        if(!cpu_rstn) begin
+            pre_inst <= 32'b0;
+            pre_mem_reg_wd <= 32'b0;
+            pre_mem_wb_rd <= 5'b0;
+        end
+        else begin
+            pre_inst <= MEM_WB_Inst;
+            pre_mem_reg_wd <= MEM_WB_WD;
+            pre_mem_wb_rd <= MEM_WB_RD;
+        end
+    end
 
     //选择操作数
     //其中的对应关系参照课本实现
-    assign RD1_true = (ForwardA == 2'b00)? ID_EX_RD1 : ((ForwardA == 2'b01) ? MEM_WB_WD : EX_MEM_ALUout);
-    assign RD2_true = (ForwardB == 2'b00)? ID_EX_RD2 : ((ForwardB == 2'b01) ? MEM_WB_WD : EX_MEM_ALUout);
+    assign RD1_true = ((pre_inst[6:0] == 7'b1101111 | pre_inst[6:0] == 7'b1100111) & (ID_EX_RS1 == pre_mem_wb_rd)) ? pre_mem_reg_wd : ((ForwardA == 2'b00) ? ID_EX_RD1 : ((ForwardA == 2'b01) ? MEM_WB_WD : EX_MEM_ALUout));
+    assign RD2_true = ((pre_inst[6:0] == 7'b1101111 | pre_inst[6:0] == 7'b1100111) & (ID_EX_RS2 == pre_mem_wb_rd)) ? pre_mem_reg_wd : ((ForwardB == 2'b00) ? ID_EX_RD2 : ((ForwardB == 2'b01) ? MEM_WB_WD : EX_MEM_ALUout));
     assign ALUA = ID_EX_ALUAsrc ? RD1_true : ID_EX_PC;
     assign ALUB = (ID_EX_ALUBsrc == 2'b00) ? RD2_true : ((ID_EX_ALUBsrc == 2'b01) ? 32'h00000004 : ID_EX_IMM);
 
@@ -351,7 +372,7 @@ module CPU_v4(
     // 写入数据存储器的数据
     // 需要考虑数据相关的情况
     wire [31:0] RD_DM_TRUE;
-    assign RD_DM_TRUE = (ForwardB == 2'b01) ? MEM_WB_WD : ((ForwardB == 2'b10) ? EX_MEM_ALUout : ID_EX_RD2);
+    assign RD_DM_TRUE = ((pre_inst[6:0] == 7'b1101111 | pre_inst[6:0] == 7'b1100111) & (ID_EX_RS2 == pre_mem_wb_rd)) ? pre_mem_reg_wd : (ForwardB == 2'b01) ? MEM_WB_WD : ((ForwardB == 2'b10) ? EX_MEM_ALUout : ID_EX_RD2);
     //EX/MEM寄存器
     EX_MEM EX_MEM_dut(
         .ID_EX_MemtoReg(ID_EX_MemtoReg),
