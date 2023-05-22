@@ -11,7 +11,7 @@
 
 * **粗略版的数据通路**
 
-![](pics/Data_path.png)
+![](pics/data_path.png)
 
 > **本版数据通路是仿照单周期CPU设计的，具体细节可参照单周期CPU的设计。区别在于加了4个段间寄存器，以及用于处理的Forward和Hazard模块**
 
@@ -32,10 +32,10 @@
     * 这里注意`RD2`的输入(即可能写入内存的数据)不仅仅来自`ID_EX_RD2`，需要考虑数据相关的情况
 
     ```verilog
-    assign RD_DM_TRUE = (ForwardB == 2'b01) ? MEM_WB_WD : ((ForwardB == 2'b10) ? EX_MEM_ALUout : ID_EX_RD2);
+    assign RD_DM_TRUE = ((pre_inst[6:0] == 7'b1101111 | pre_inst[6:0] == 7'b1100111) & (ID_EX_RS2 == pre_mem_wb_rd)) ? pre_mem_reg_wd : (ForwardB == 2'b01) ? MEM_WB_WD : ((ForwardB == 2'b10) ? EX_MEM_ALUout : ID_EX_RD2);
     ```
 
-    > `RD_DM_TRUE`是真正写入数据储存器的数据。这里需要考虑到sw指令前有lw、add这样的指令，所以不仅仅可能写入`ID_EX_RD2`
+    > `RD_DM_TRUE`是真正写入数据储存器的数据。这里需要考虑到sw指令前有lw、add、jal这样的指令，所以不仅仅可能写入`ID_EX_RD2`
 
   * `MEM/WB`
 
@@ -107,6 +107,24 @@
   ```
 
   > 这里主要是处理当MEM、WB阶段都要写入寄存器且写入的目标寄存器相同时，应该选择MEM阶段(也即EX/MEM寄存器)的数据写入。
+  
+* **可能产生的数据相关(总结)**
+
+|        在前\在后        | add/sub/and/or/xor | addi/slli/srli/srai |  lui   | beq/blt/bltu |   lw   |   sw   | auipc  |  jal   |  jalr  |
+| :---------------------: | :----------------: | :-----------------: | :----: | :----------: | :----: | :----: | :----: | :----: | :----: |
+| **add/sub/and/or/xor**  |        相关        |        相关         | 无相关 |     相关     |  相关  |  相关  | 无相关 | 无相关 |  相关  |
+| **addi/slli/srli/srai** |        相关        |        相关         | 无相关 |     相关     |  相关  |  相关  | 无相关 | 无相关 |  相关  |
+|         **lui**         |        相关        |        相关         | 无相关 |     相关     |  相关  |  相关  | 无相关 | 无相关 |  相关  |
+|    **beq/blt/bltu**     |       无相关       |       无相关        | 无相关 |    无相关    | 无相关 | 无相关 | 无相关 | 无相关 | 无相关 |
+|         **lw**          |        相关        |        相关         | 无相关 |     相关     |  相关  |  相关  | 无相关 | 无相关 |  相关  |
+|         **sw**          |       无相关       |       无相关        | 无相关 |    无相关    | 无相关 | 无相关 | 无相关 | 无相关 | 无相关 |
+|        **auipc**        |        相关        |        相关         | 无相关 |     相关     |  相关  |  相关  | 无相关 | 无相关 |  相关  |
+|         **jal**         |        相关        |        相关         | 无相关 |     相关     |  相关  |  相关  | 无相关 | 无相关 |  相关  |
+|        **jalr**         |        相关        |        相关         | 无相关 |     相关     |  相关  |  相关  | 无相关 | 无相关 |  相关  |
+
+> `beq、blt、bltu、sw`不涉及寄存器堆的写，不会与其后的指令产生数据相关
+>
+> `lui、auipc、jal`计算时没有用到别的寄存器，不会与其前的指令产生数据相关
 
 ## 核心代码
 
@@ -154,6 +172,10 @@ module CPU_v4(
     //Forward模块
     wire [1:0] ForwardA;
     wire [1:0] ForwardB;
+    //jal、jalr的处理
+    reg [31:0] pre_inst;
+    reg [31:0] pre_mem_reg_wd;
+    reg [4:0] pre_mem_wb_rd;
 
 
     //IF阶段
@@ -237,10 +259,12 @@ module CPU_v4(
                 NPC = (PC == 32'h0 | PC == 32'h4) ? (PC + 32'h4) : (NPC_src + 32'h4);
             end
             2'b10: begin
+                //jal
                 NPC = ID_EX_IMM + ID_EX_PC;
             end
             2'b11: begin
-                NPC = (ID_EX_IMM + (ForwardA == 2'b10) ? EX_MEM_ALUout : ID_EX_RD1) & ~1;
+                //jalr
+                NPC = (ID_EX_IMM + (((pre_inst[6:0] == 7'b1101111 | pre_inst[6:0] == 7'b1100111) & (ID_EX_RS1 == pre_mem_wb_rd)) ? pre_mem_reg_wd : (((ForwardA == 2'b10) ? EX_MEM_ALUout : ((ForwardA == 2'b01) ? MEM_WB_WD : ID_EX_RD1))))) & ~1;
             end
             default: begin
                 NPC = 32'h00000000;
@@ -414,11 +438,26 @@ module CPU_v4(
         .ID_EX_Flush(ID_EX_Flush)
     );
 
+    //处理jal、jalr的相关
+    //这里jal、jalr指令一定会产生Flush，暂停两个周期
+    //所以在执行下一条指令时，jal、jalr刚好执行完毕
+    always @(posedge cpu_clk or negedge cpu_rstn) begin
+        if(!cpu_rstn) begin
+            pre_inst <= 32'b0;
+            pre_mem_reg_wd <= 32'b0;
+            pre_mem_wb_rd <= 5'b0;
+        end
+        else begin
+            pre_inst <= MEM_WB_Inst;
+            pre_mem_reg_wd <= MEM_WB_WD;
+            pre_mem_wb_rd <= MEM_WB_RD;
+        end
+    end
 
     //选择操作数
     //其中的对应关系参照课本实现
-    assign RD1_true = (ForwardA == 2'b00)? ID_EX_RD1 : ((ForwardA == 2'b01) ? MEM_WB_WD : EX_MEM_ALUout);
-    assign RD2_true = (ForwardB == 2'b00)? ID_EX_RD2 : ((ForwardB == 2'b01) ? MEM_WB_WD : EX_MEM_ALUout);
+    assign RD1_true = ((pre_inst[6:0] == 7'b1101111 | pre_inst[6:0] == 7'b1100111) & (ID_EX_RS1 == pre_mem_wb_rd)) ? pre_mem_reg_wd : ((ForwardA == 2'b00) ? ID_EX_RD1 : ((ForwardA == 2'b01) ? MEM_WB_WD : EX_MEM_ALUout));
+    assign RD2_true = ((pre_inst[6:0] == 7'b1101111 | pre_inst[6:0] == 7'b1100111) & (ID_EX_RS2 == pre_mem_wb_rd)) ? pre_mem_reg_wd : ((ForwardB == 2'b00) ? ID_EX_RD2 : ((ForwardB == 2'b01) ? MEM_WB_WD : EX_MEM_ALUout));
     assign ALUA = ID_EX_ALUAsrc ? RD1_true : ID_EX_PC;
     assign ALUB = (ID_EX_ALUBsrc == 2'b00) ? RD2_true : ((ID_EX_ALUBsrc == 2'b01) ? 32'h00000004 : ID_EX_IMM);
 
@@ -444,7 +483,7 @@ module CPU_v4(
     // 写入数据存储器的数据
     // 需要考虑数据相关的情况
     wire [31:0] RD_DM_TRUE;
-    assign RD_DM_TRUE = (ForwardB == 2'b01) ? MEM_WB_WD : ((ForwardB == 2'b10) ? EX_MEM_ALUout : ID_EX_RD2);
+    assign RD_DM_TRUE = ((pre_inst[6:0] == 7'b1101111 | pre_inst[6:0] == 7'b1100111) & (ID_EX_RS2 == pre_mem_wb_rd)) ? pre_mem_reg_wd : (ForwardB == 2'b01) ? MEM_WB_WD : ((ForwardB == 2'b10) ? EX_MEM_ALUout : ID_EX_RD2);
     //EX/MEM寄存器
     EX_MEM EX_MEM_dut(
         .ID_EX_MemtoReg(ID_EX_MemtoReg),
@@ -522,12 +561,13 @@ module CPU_v4(
     assign rrd2 = rd2;
 
 endmodule
-
 ```
 
 > 注意：这里指令存储器并不需要双端口，因为这一次给的sdu模块没有写入的功能，而在写实验的时候我是按照上次的sdu写的，所以这里开了双端口的存储器。
 
 >**这里重点说一下PC。PC的处理相对复杂，需要针对stall和flush的情况单独处理，所以这里开了一个寄存器NPC_src来作为NPC的一个操作数。flush的时候会计算出新的PC，这是就要将新的PC赋值给NPC_src。stall的时候NPC也需要停一下，由于NPC是组合逻辑实现的，所以在NPC_src上进行stall操作** 
+
+> **同时要注意数据相关的处理，比较容易忽略的是jal、jalr对其他指令的影响。**
 
 ## 仿真结果
 
@@ -538,7 +578,7 @@ endmodule
 | ![](pics/sim3.png) | ![](pics/sim4.png) |
 | ![](pics/sim5.png) | ![](pics/sim6.png) |
 
-> 上面只是大致的仿真结果，最后**x31寄存器**的值为18(D)，说明指令实现的是正确的
+> 上面只是大致的仿真结果，最后**x31寄存器**的值为0000_0020，说明指令实现的是正确的
 
 ## 下载测试结果
 
@@ -546,7 +586,7 @@ endmodule
 | :----------------: | :----------------: |
 | ![](pics/test.png) | ![](pics/sort.png) |
 
-> 可以看到test中`x31寄存器`的值为18(D)
+> 可以看到test中`x31寄存器`的值为0000_0020
 >
 > sort中存储器的值是按照升序排的
 >
