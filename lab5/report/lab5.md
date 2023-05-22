@@ -11,7 +11,7 @@
 
 * **粗略版的数据通路**
 
-![](pics/data_path.png)
+![](pics/Data_path.png)
 
 > **本版数据通路是仿照单周期CPU设计的，具体细节可参照单周期CPU的设计。区别在于加了4个段间寄存器，以及用于处理的Forward和Hazard模块**
 
